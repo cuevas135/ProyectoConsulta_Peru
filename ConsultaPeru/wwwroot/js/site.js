@@ -1,18 +1,28 @@
 const form = document.querySelector('#consulta-form');
 if (form) {
  const numero = form.querySelector('#Numero');
+ const limpiar = form.querySelector('#limpiar-numero');
+ const actualizarLimpiar = () => { if (limpiar) limpiar.hidden = numero.value.length === 0; };
+ limpiar?.addEventListener('click', () => {
+  numero.value = '';
+  numero.dispatchEvent(new Event('input', { bubbles: true }));
+  numero.focus({ preventScroll: true });
+ });
+ actualizarLimpiar();
  form.querySelectorAll('[name="Tipo"]').forEach(radio => radio.addEventListener('change', () => {
  const length = radio.value === 'RUC' ? 11 : 8;
  numero.maxLength = length; numero.pattern = `[0-9]{${length}}`;
  numero.placeholder = `Ingresa los ${length} dígitos`; numero.value = '';
+ actualizarLimpiar();
  document.querySelector('#ayuda').textContent = `${length} dígitos, sin espacios ni guiones.`; numero.focus();
  }));
- numero.addEventListener('input', () => { numero.value = numero.value.replace(/[^0-9]/g, ''); });
- form.addEventListener('submit', () => { const button = form.querySelector('button'); button.disabled = true; button.textContent = 'Consultando…'; });
+ numero.addEventListener('input', () => { numero.value = numero.value.replace(/[^0-9]/g, ''); actualizarLimpiar(); });
+ form.addEventListener('submit', () => { const button = form.querySelector('button[type="submit"]'); button.disabled = true; button.textContent = 'Consultando…'; });
  window.addEventListener('pageshow', event => {
-  const button = form.querySelector('button');
+  const button = form.querySelector('button[type="submit"]');
   button.disabled = false;
   button.textContent = 'Buscar documento →';
+  actualizarLimpiar();
   // Al volver con Atrás, conserva el desplazamiento que restaura el navegador.
   if (event.persisted) return;
   const area = document.querySelector('#consulta-area');

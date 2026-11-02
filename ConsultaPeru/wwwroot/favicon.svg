@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Consulta Perú</title>
+  <rect width="64" height="64" rx="16" fill="#087c69"/>
+  <g fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M29 23C26 19 18 19 15 24C12 29 13 38 19 41C22 43 27 42 30 38"/>
+    <path d="M37 43V21H44C54 21 54 34 44 34H37"/>
+  </g>
+</svg>
