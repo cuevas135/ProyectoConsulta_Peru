@@ -1,0 +1,8 @@
+@model ConsultaPeru.Services.CampoResultado
+@{ var disponible = !string.IsNullOrWhiteSpace(Model.Valor) && Model.Valor.Trim() != "-"; }
+<div class="data-row">
+    <dt>@Model.Etiqueta</dt>
+    <dd><span>@(disponible ? Model.Valor : "No informado")</span>
+        @if (disponible) { <button type="button" class="copy-button" data-copy="@Model.Valor" aria-label="Copiar @Model.Etiqueta">Copiar</button> }
+    </dd>
+</div>

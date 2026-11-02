@@ -1,0 +1,20 @@
+@page
+@model TipoCambioModel
+@using ConsultaPeru.Services
+@using System.Globalization
+@{ ViewData["Title"] = "Tipo de cambio SUNAT"; }
+<section class="intro"><span class="eyebrow">TIPO DE CAMBIO · PERÚ</span><h1>Consulta el <em>tipo de cambio.</em></h1><p>Compra y venta por fecha, según los datos SUNAT del proveedor.</p></section>
+<section class="workspace" data-has-result="@(Model.Resultado is not null ? "true" : "false")"><div class="card"><div class="heading"><span class="step">01</span><div><h2>Elige una fecha</h2><p>Consulta una cotización diaria.</p></div></div>
+<form method="post" class="loading-form"><label class="input-label" asp-for="Fecha">Fecha de consulta</label><input asp-for="Fecha" type="date" max="@TipoCambioModel.HoyPeru.ToString("yyyy-MM-dd")" required /><p class="hint">La fecha inicial corresponde al día de hoy en Perú.</p><button type="submit">Consultar tipo de cambio →</button></form></div>
+<div class="card" data-result-panel aria-live="polite"><div class="heading"><span class="step">02</span><div><h2>Cotización</h2><p>Valores proporcionados por el servicio externo.</p></div></div>
+@if (Model.Error is not null) { <div class="error" role="alert">@Model.Error</div> }
+else if (Model.Resultado is { } r) {
+<dl class="result-fields">
+<partial name="_CampoResultado" model='new CampoResultado("Fecha publicada", r.Fecha.ToString("dd/MM/yyyy"))' />
+<partial name="_CampoResultado" model='new CampoResultado("Moneda", r.Moneda)' />
+<partial name="_CampoResultado" model='new CampoResultado("Compra (S/)", r.Compra.ToString("0.000", CultureInfo.InvariantCulture))' />
+<partial name="_CampoResultado" model='new CampoResultado("Venta (S/)", r.Venta.ToString("0.000", CultureInfo.InvariantCulture))' />
+</dl><p class="hint">La fecha publicada es la informada por el proveedor.</p>
+} else { <div class="empty"><span class="document-icon" aria-hidden="true">S/</span><h3>Compra y venta, en un lugar</h3><p>Selecciona una fecha para consultar.</p></div> }
+</div></section><p id="copy-status" role="status" class="hint"></p>
+

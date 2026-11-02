@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>consulta-peru-aqpfact-local</UserSecretsId>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="App_Data/**" />
+    <None Remove="App_Data/**" />
+    <Content Update="appsettings.Local.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+</Project>
+

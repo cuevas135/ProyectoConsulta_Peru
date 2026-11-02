@@ -1,0 +1,8 @@
+@page
+@model AccesoActividadModel
+@{ ViewData["Title"] = "Acceso privado"; }
+<div class="access-overlay"><section class="card access-dialog" role="dialog" aria-modal="true" aria-labelledby="access-title">
+<span class="eyebrow">ACCESO PRIVADO</span><h1 id="access-title">Actividad del sitio</h1><p>Introduce la contraseña de administración.</p>
+@if (Model.Error is not null) { <p class="error" role="alert">@Model.Error</p> }
+<form method="post"><label class="input-label" for="Password">Contraseña</label><input type="password" id="Password" name="Password" autocomplete="current-password" required autofocus maxlength="256" /><button type="submit">Ingresar →</button></form><a asp-page="/Index" class="access-cancel">Volver a consultas</a>
+</section></div>
