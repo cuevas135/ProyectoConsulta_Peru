@@ -180,5 +180,3 @@ sealed class FakeEnvironment(string name):Microsoft.AspNetCore.Hosting.IWebHostE
  public Microsoft.Extensions.FileProviders.IFileProvider WebRootFileProvider {get;set;}=new Microsoft.Extensions.FileProviders.NullFileProvider();
  public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider {get;set;}=new Microsoft.Extensions.FileProviders.NullFileProvider();
 }
-
-
