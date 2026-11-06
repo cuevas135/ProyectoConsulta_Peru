@@ -1,8 +1,30 @@
 ﻿@page
 @model PrivacyModel
 @{
-    ViewData["Title"] = "Privacy Policy";
+    ViewData["Title"] = "Política de privacidad";
 }
-<h1>@ViewData["Title"]</h1>
-
-<p>Use this page to detail your site's privacy policy.</p>
+<article class="card legal-page">
+    <h1>Política de privacidad</h1>
+    <p class="legal-date">Actualizada el 5 de noviembre de 2026</p>
+    <p>Esta política explica cómo Dato al Toque trata la información al usar las consultas de DNI, RUC y tipo de cambio en datoaltoque.com.</p>
+    <h2>Información y finalidad</h2>
+    <p>Al buscar un documento, enviamos el número ingresado a un proveedor externo para obtener los datos solicitados. El servidor procesa la respuesta y la muestra en tu navegador. La consulta de tipo de cambio utiliza la fecha elegida.</p>
+    <p>Guardamos registros de actividad en archivos privados CSV para conocer el uso del servicio y diagnosticar fallos. Incluyen fecha y hora, tipo de operación, estado de la búsqueda, proveedor, duración, códigos de respuesta e incidencias técnicas. Su formato excluye los números de DNI y RUC, los nombres devueltos, la dirección IP y el agente del navegador.</p>
+    <p>Los tipo de cambio se guardan en un archivo separado para reutilizarlas. Los resultados personales se procesan para responder a la consulta y permanecen en la página hasta que la cierres o cambies su contenido. Si los copias, su tratamiento posterior dependerá del uso que les des.</p>
+    <h2>Servicios externos</h2>
+    <p>Las consultas se realizan principalmente mediante servidores externos. Ante determinados fallos, la aplicación puede repetir la consulta mediante una api secundaria como respaldo. Cada proveedor recibe el documento o la fecha necesarios para responder. SmarterASP.NET proporciona el alojamiento.</p>
+    <p>Estos servicios reciben información técnica de las conexiones y pueden mantener sus propios registros según sus condiciones. El tratamiento puede involucrar infraestructura fuera del Perú, dependiendo del centro de datos y los sistemas de los proveedores.</p>
+    <h2>Tratamiento de datos de terceros</h2>
+    <p>Quien consulte información de otra persona debe contar con una finalidad y habilitación legal apropiadas. Introducir un DNI ajeno en el formulario no constituye el consentimiento de su titular. El tratamiento debe ajustarse a la Ley N.º 29733 y al Reglamento aprobado por el Decreto Supremo N.º 016-2024-JUS. Cuando corresponda obtener consentimiento, deberá solicitarse antes del tratamiento para su finalidad específica.</p>
+    <h2>Cookies</h2>
+    <p>La aplicación utiliza mecanismos técnicos de ASP.NET Core, incluidas cookies para proteger los formularios. El acceso administrativo utiliza una cookie con vencimiento. La versión actual carece de integraciones de publicidad y analítica publicitaria. Puedes gestionar las cookies en el navegador, aunque bloquear las necesarias puede impedir el envío de formularios.</p>
+    <h2>Conservación y seguridad</h2>
+    <p>Los registros de actividad permanecen en el almacenamiento del sitio hasta su eliminación administrativa. Actualmente estos archivos se conservan sin un borrado automático por antigüedad.</p>
+    <p>Usamos HTTPS y almacenamos los CSV fuera de la carpeta pública de recursos web. El acceso al alojamiento y a su configuración requiere credenciales.</p>
+    <h2>Derechos y contacto</h2>
+    <p>Puedes solicitar acceso, rectificación, cancelación u oposición respecto de los datos que tratemos, según corresponda. Podemos pedir información proporcional para verificar tu identidad y atender tu solicitud. La corrección de la consulta se hará según nuestros medios técnicos, porque consultamos servicios externos.</p>
+    <partial name="_ContactoLegal" />
+    <h2>Actualizaciones</h2>
+    <p>Publicaremos los cambios con su fecha cuando varíen el servicio o las condiciones de tratamiento.</p>
+    <p><a asp-page="/Terminos">Términos y condiciones</a> · <a asp-page="/Index">Volver a las consultas</a></p>
+</article>

@@ -1,0 +1,17 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
+    var responsable = Configuration["Legal:Responsable"];
+    var correo = Configuration["Legal:Correo"] ?? "programasanc135@gmail.com";
+}
+@if (!string.IsNullOrWhiteSpace(responsable))
+{
+    <p>Responsable del sitio — @responsable.</p>
+}
+@if (!string.IsNullOrWhiteSpace(correo))
+{
+    <p>Escribe a <a href="mailto:@correo">@correo</a> para consultas de privacidad y ejercicio de derechos. Indica tu solicitud y un medio para responderte. Evita enviar documentos completos o información sensible en el primer contacto.</p>
+}
+else
+{
+    <p>El canal de contacto de privacidad está pendiente de configuración por el administrador.</p>
+}
