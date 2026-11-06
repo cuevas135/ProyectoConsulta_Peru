@@ -1,7 +1,15 @@
 @model ConsultaPeru.Services.CampoResultado
 @{ var disponible = !string.IsNullOrWhiteSpace(Model.Valor) && Model.Valor.Trim() != "-"; }
 <div class="data-row">
-    <dt>@Model.Etiqueta</dt>
+    <dt>@Model.Etiqueta
+        @if (!string.IsNullOrWhiteSpace(Model.Ayuda))
+        {
+            <details class="field-help">
+                <summary aria-label="Información sobre @Model.Etiqueta"><span aria-hidden="true">ⓘ</span></summary>
+                <p>@Model.Ayuda</p>
+            </details>
+        }
+    </dt>
     <dd><span>@(disponible ? Model.Valor : "No informado")</span>
         @if (disponible) { <button type="button" class="copy-button" data-copy="@Model.Valor" aria-label="Copiar @Model.Etiqueta">Copiar</button> }
     </dd>

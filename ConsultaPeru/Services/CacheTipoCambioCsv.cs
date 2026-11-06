@@ -5,7 +5,8 @@ namespace ConsultaPeru.Services;
 
 public interface ICacheTipoCambio
 {
-    Task<RespuestaCambio> ObtenerAsync(DateOnly fecha, Func<CancellationToken, Task<RespuestaCambio>> consultarApi, CancellationToken ct);
+    Task<RespuestaCambio> ObtenerAsync(DateOnly fecha, Func<CancellationToken, Task<RespuestaCambio>> consultarApi, CancellationToken ct,
+        Func<DateOnly, CancellationToken, Task<RespuestaCambio>>? consultarAnterior = null);
 }
 
 public sealed class CacheTipoCambioCsv(string directorio, TimeProvider reloj) : ICacheTipoCambio
@@ -13,7 +14,8 @@ public sealed class CacheTipoCambioCsv(string directorio, TimeProvider reloj) : 
     private readonly SemaphoreSlim gate = new(1, 1);
     private const string Cabecera = "fecha_consultada,fecha_publicada,moneda,compra,venta,guardado_utc";
     private sealed record Fila(DateOnly Consulta, TipoCambio Datos, DateTimeOffset Guardado);
-    public async Task<RespuestaCambio> ObtenerAsync(DateOnly fecha, Func<CancellationToken, Task<RespuestaCambio>> consultarApi, CancellationToken ct)
+    public async Task<RespuestaCambio> ObtenerAsync(DateOnly fecha, Func<CancellationToken, Task<RespuestaCambio>> consultarApi, CancellationToken ct,
+        Func<DateOnly, CancellationToken, Task<RespuestaCambio>>? consultarAnterior = null)
     {
         await gate.WaitAsync(ct);
         try
@@ -42,7 +44,21 @@ public sealed class CacheTipoCambioCsv(string directorio, TimeProvider reloj) : 
                     if (!provisionalVencida) return new(fila.Datos, null, Actividad.EstadoConsulta.ConResultados, "CSV");
                 }
                 var resultado = await consultarApi(ct);
-                if (resultado.Datos is not { } datos) return resultado; // No cachear errores ni respuestas vacías.
+                // Incluye el 502 histórico del proveedor. Autorización, límites y errores de red detienen el retroceso.
+                for (var dias = 1; resultado.BuscarAnterior
+                    && consultarAnterior is not null && dias <= TipoCambioService.MaxDiasRetroceso && fecha.DayNumber >= dias; dias++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var anterior = fecha.AddDays(-dias);
+                    resultado = filas.TryGetValue(anterior, out var previa)
+                        ? new(previa.Datos, null, Actividad.EstadoConsulta.ConResultados, "CSV")
+                        : await consultarAnterior(anterior, ct);
+                    if (resultado.Datos is { } encontrada && encontrada.Fecha > anterior)
+                        return new(null, "El proveedor devolvió una cotización posterior al día consultado.");
+                }
+                if (resultado.Datos is not { } datos) return resultado.Estado == Actividad.EstadoConsulta.SinResultados && consultarAnterior is not null
+                    ? resultado with { Error = $"No se encontró tipo de cambio para esa fecha ni en los {TipoCambioService.MaxDiasRetroceso} días anteriores." }
+                    : resultado; // No cachear errores ni respuestas vacías.
                 if (datos.Compra <= 0 || datos.Venta <= 0 || datos.Moneda != "USD" || datos.Fecha > fecha)
                     return new(null, "El proveedor devolvió una cotización no válida para la fecha solicitada.");
                 filas[fecha] = new(fecha, datos, reloj.GetUtcNow());
@@ -58,7 +74,7 @@ public sealed class CacheTipoCambioCsv(string directorio, TimeProvider reloj) : 
                     File.Move(temporal, archivo, overwrite: true);
                 }
                 finally { if (File.Exists(temporal)) File.Delete(temporal); }
-                return resultado with { Origen = "API" };
+                return resultado;
             }
         }
         finally { gate.Release(); }

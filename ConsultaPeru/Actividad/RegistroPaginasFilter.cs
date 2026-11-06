@@ -25,7 +25,10 @@ public sealed class RegistroPaginasFilter(IRegistroActividad registro, TimeProvi
                 if (esBusqueda) await Guardar(TipoEvento.Busqueda, EstadoConsulta.Error.ToString(), "Excepcion");
                 return;
             }
-            if (!esBusqueda) { await Guardar(TipoEvento.Visita, "CargaPagina"); return; }
+            if (!esBusqueda) {
+                if (!http.Request.Query.ContainsKey("consulta")) await Guardar(TipoEvento.Visita, "CargaPagina");
+                return;
+            }
             var estado = pagina is Pages.IndexModel doc ? doc.EstadoBusqueda : ((Pages.TipoCambioModel)pagina).EstadoBusqueda;
             operacion = pagina is Pages.IndexModel d && d.Tipo is "DNI" or "RUC" ? d.Tipo : operacion;
             var error = pagina is Pages.IndexModel dm ? dm.Error : ((Pages.TipoCambioModel)pagina).Error;

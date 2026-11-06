@@ -182,6 +182,71 @@ Check((await badCacheService.Consultar(new(2026,5,21),default)).Error is not nul
 var mismatched=await exchangeCache.ObtenerAsync(new(2026,5,23),_=>Task.FromResult(new RespuestaCambio(new(new(2026,5,22),3.4m,3.5m,"USD"),null)),default);
 var mapped=await loadedCache.ObtenerAsync(new(2026,5,23),FailedQuote,default);
 Check(mapped.Origen=="CSV" && mapped.Datos?.Fecha==new DateOnly(2026,5,22),"CSV conserva fecha consultada y fecha publicada sin confundirlas");
+var historicalDir=Path.Combine(cacheDir,"historico");
+var historicalCache=new CacheTipoCambioCsv(historicalDir,clock);
+var historicalDates=new List<DateOnly>();
+Task<RespuestaCambio> Historical(DateOnly day,CancellationToken ct) {
+ historicalDates.Add(day);
+ return Task.FromResult(day==new DateOnly(2015,1,1)
+  ? new RespuestaCambio(new(day,3m,3.1m,"USD"),null)
+  : new RespuestaCambio(null,"Sin datos",ConsultaPeru.Actividad.EstadoConsulta.SinResultados));
+}
+var historicalDate=new DateOnly(2015,1,3);
+var historicalResult=await historicalCache.ObtenerAsync(historicalDate,ct=>Historical(historicalDate,ct),default,Historical);
+Check(historicalResult.Datos?.Fecha==new DateOnly(2015,1,1) && historicalDates.SequenceEqual(new[]{historicalDate,historicalDate.AddDays(-1),historicalDate.AddDays(-2)}),"Retrocede varios días hasta encontrar cotización");
+Check(File.ReadAllText(Path.Combine(historicalDir,"tipo_cambio.csv")).Contains("2015-01-03,2015-01-01,USD"),"CSV distingue fecha solicitada y fecha de cierre encontrada");
+var repeatedHistorical=await historicalCache.ObtenerAsync(historicalDate,ct=>throw new Exception("API inesperada"),default,Historical);
+Check(repeatedHistorical.Origen=="CSV" && historicalDates.Count==3,"Repetir fecha histórica reutiliza cierre sin llamadas");
+historicalDates.Clear();
+var nextHistorical=historicalDate.AddDays(1);
+var nextHistoricalResult=await historicalCache.ObtenerAsync(nextHistorical,ct=>Historical(nextHistorical,ct),default,Historical);
+Check(nextHistoricalResult.Datos?.Fecha==new DateOnly(2015,1,1) && historicalDates.Count==1,"Retroceso usa fecha previa ya guardada");
+var technical=await historicalCache.ObtenerAsync(new(2015,2,1),ct=>Task.FromResult(new RespuestaCambio(null,"Error técnico")),default,(day,ct)=>throw new Exception("Retroceso indebido"));
+Check(technical.Error=="Error técnico","Errores técnicos detienen el retroceso");
+var emptyDays=0;
+Task<RespuestaCambio> EmptyDay(DateOnly day,CancellationToken ct) { emptyDays++;return Task.FromResult(new RespuestaCambio(null,"Sin datos",ConsultaPeru.Actividad.EstadoConsulta.SinResultados)); }
+var limitDate=new DateOnly(2014,1,1);
+await historicalCache.ObtenerAsync(limitDate,ct=>EmptyDay(limitDate,ct),default,EmptyDay);
+Check(emptyDays==32,"Retroceso limitado a 31 días anteriores");
+var gatewayDir=Path.Combine(cacheDir,"gateway");
+var gatewayCache=new CacheTipoCambioCsv(gatewayDir,clock);
+await gatewayCache.ObtenerAsync(new(2015,1,1),ct=>Task.FromResult(new RespuestaCambio(new(new(2015,1,1),3m,3.1m,"USD"),null)),default);
+var gatewayHandler=new FakeHandler("error code: 502",HttpStatusCode.BadGateway);
+var gatewayService=new TipoCambioService(Client(gatewayHandler),config,cache:gatewayCache);
+var gatewayResult=await gatewayService.Consultar(new(2015,1,2),default);
+Check(gatewayResult.Datos?.Fecha==new DateOnly(2015,1,1) && gatewayHandler.Calls==1,"502 del 02/01/2015 recupera cierre del 01/01/2015 desde CSV");
+Check(File.ReadAllText(Path.Combine(gatewayDir,"tipo_cambio.csv")).Contains("2015-01-02,2015-01-01,USD"),"502 guarda fecha solicitada y cierre real sin confundirlas");
+await gatewayService.Consultar(new(2015,1,2),default);
+Check(gatewayHandler.Calls==1,"Repetir fecha que devolvió 502 usa CSV sin consumir API");
+var unauthorizedHandler=new FakeHandler("unauthorized",HttpStatusCode.Unauthorized);
+await new TipoCambioService(Client(unauthorizedHandler),config,cache:gatewayCache).Consultar(new(2015,2,1),default);
+Check(unauthorizedHandler.Calls==1,"Autorización inválida no dispara retrocesos");
+var limitHandler=new FakeHandler("rate limit",HttpStatusCode.TooManyRequests);
+await new TipoCambioService(Client(limitHandler),config,cache:gatewayCache).Consultar(new(2015,2,1),default);
+Check(limitHandler.Calls==1,"Límite del proveedor no dispara retrocesos");
+using var temporaryResults=new ResultadosTemporales();
+var resultContext=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+resultContext.Request.Scheme="https";
+var resultId=temporaryResults.Guardar(resultContext,"resultado ficticio");
+var ownerCookie=resultContext.Response.Headers.SetCookie.ToString().Split(';')[0];
+var duplicateContext=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+duplicateContext.Request.Headers.Cookie=ownerCookie;
+Check(temporaryResults.Leer<string>(duplicateContext,resultId)=="resultado ficticio","Duplicar pestaña conserva resultado para el mismo navegador");
+Check(temporaryResults.Leer<string>(duplicateContext,resultId)=="resultado ficticio","Actualizar no consume el resultado temporal");
+Check(temporaryResults.Leer<string>(new Microsoft.AspNetCore.Http.DefaultHttpContext(),resultId) is null,"Otro navegador no puede leer el resultado por su enlace");
+Check(temporaryResults.Leer<string>(duplicateContext,"desconocido") is null,"Resultado desconocido se descarta");
+var getHandler=new FakeHandler("unexpected");
+var exchangePage=new ConsultaPeru.Pages.TipoCambioModel(new TipoCambioService(Client(getHandler),emptyConfig),temporaryResults) {
+ PageContext=new Microsoft.AspNetCore.Mvc.RazorPages.PageContext{HttpContext=duplicateContext} };
+exchangePage.Fecha=new DateOnly(2026,5,21);
+var redirect=await exchangePage.OnPostAsync(default) as Microsoft.AspNetCore.Mvc.RedirectToPageResult;
+Check(redirect is not null,"El POST de consulta redirige a GET, incluso ante error");
+var exchangeResultId=(string)redirect!.RouteValues!["consulta"]!;
+var duplicatedPage=new ConsultaPeru.Pages.TipoCambioModel(new TipoCambioService(Client(getHandler),emptyConfig),temporaryResults) {
+ PageContext=new Microsoft.AspNetCore.Mvc.RazorPages.PageContext{HttpContext=duplicateContext} };
+duplicatedPage.OnGet(exchangeResultId);
+duplicatedPage.OnGet(exchangeResultId);
+Check(getHandler.Calls==0 && duplicatedPage.Fecha==new DateOnly(2026,5,21),"Recargar GET restaura consulta sin llamar al proveedor");
 Console.WriteLine($"Correcto: {count} comprobaciones sin conexiones externas ni datos personales reales.");
 sealed class FixedClock:TimeProvider {public override DateTimeOffset GetUtcNow()=>new(2026,11,1,12,0,0,TimeSpan.Zero);}
 sealed class FakeHandler(string body,HttpStatusCode status=HttpStatusCode.OK):HttpMessageHandler {

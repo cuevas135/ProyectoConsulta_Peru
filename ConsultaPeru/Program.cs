@@ -57,6 +57,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddRazorPages(options => options.Conventions.ConfigureFilter(
     new Microsoft.AspNetCore.Mvc.ServiceFilterAttribute(typeof(ConsultaPeru.Actividad.RegistroPaginasFilter))));
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ConsultaPeru.Services.ResultadosTemporales>();
 builder.Services.AddSingleton<ConsultaPeru.Services.ICacheTipoCambio>(sp =>
     new ConsultaPeru.Services.CacheTipoCambioCsv(
         builder.Configuration["TipoCambio:DirectorioCache"] ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "TipoCambio"),

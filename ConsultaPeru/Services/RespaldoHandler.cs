@@ -96,7 +96,8 @@ public sealed class RespaldoHandler(IHttpClientFactory factory, IConfiguration c
         } : "Otra";
         var id = accessor?.HttpContext?.Items["ActividadSolicitudId"] as string ?? Guid.NewGuid().ToString("N");
         await registro.GuardarAsync(new(Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, id,
-            Actividad.TipoEvento.IntentoApi, operacion, estado, proveedor, duracion, codigo));
+            Actividad.TipoEvento.IntentoApi, operacion, estado, proveedor, duracion, codigo,
+            Detalle: operacion == "TipoCambioDia" ? partes[^1] : ""));
         if (estado is "Timeout" or "ErrorConexion" or "JsonInvalido" or "RespuestaInvalida" || codigo is >= 500 or 401 or 403 or 408 or 429)
             await registro.GuardarAsync(new(Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, id,
                 Actividad.TipoEvento.Incidencia, operacion, estado, proveedor, duracion, codigo));

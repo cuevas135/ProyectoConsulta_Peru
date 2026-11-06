@@ -10,11 +10,16 @@
 @if (Model.Error is not null) { <div class="error" role="alert">@Model.Error</div> }
 else if (Model.Resultado is { } r) {
 <dl class="result-fields">
-<partial name="_CampoResultado" model='new CampoResultado("Fecha publicada", r.Fecha.ToString("dd/MM/yyyy"))' />
+<partial name="_CampoResultado" model='new CampoResultado("Fecha publicada", r.Fecha.ToString("dd/MM/yyyy"), "Es la fecha a la que pertenece la cotización informada por el proveedor. Puede ser anterior a la fecha consultada si se utilizó el cierre de otro día.")' />
+<partial name="_CampoResultado" model='new CampoResultado("Fecha consultada", Model.Fecha?.ToString("dd/MM/yyyy") ?? "", "Es el día que seleccionaste para buscar el tipo de cambio. Si no se obtuvo una cotización para ese día, se busca en fechas anteriores.")' />
 <partial name="_CampoResultado" model='new CampoResultado("Moneda", r.Moneda)' />
 <partial name="_CampoResultado" model='new CampoResultado("Compra (S/)", r.Compra.ToString("0.000", CultureInfo.InvariantCulture))' />
 <partial name="_CampoResultado" model='new CampoResultado("Venta (S/)", r.Venta.ToString("0.000", CultureInfo.InvariantCulture))' />
 </dl><p class="hint">La fecha publicada es la informada por el proveedor.</p>
+@if (Model.Fecha is { } solicitada && r.Fecha < solicitada)
+{
+<p class="cierre-bancario"><strong>Para este día se usa el cierre bancario del @r.Fecha.ToString("dd/MM/yyyy").</strong></p>
+}
 } else { <div class="empty"><span class="document-icon" aria-hidden="true">S/</span><h3>Compra y venta, en un lugar</h3><p>Selecciona una fecha para consultar.</p></div> }
 </div></section><p id="copy-status" role="status" class="hint"></p>
 

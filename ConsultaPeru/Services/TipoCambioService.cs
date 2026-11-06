@@ -5,16 +5,30 @@ using System.Text.Json;
 namespace ConsultaPeru.Services;
 
 public sealed record TipoCambio(DateOnly Fecha, decimal Compra, decimal Venta, string Moneda);
-public sealed record RespuestaCambio(TipoCambio? Datos, string? Error, Actividad.EstadoConsulta Estado = Actividad.EstadoConsulta.Error, string Origen = "API");
+public sealed record RespuestaCambio(TipoCambio? Datos, string? Error, Actividad.EstadoConsulta Estado = Actividad.EstadoConsulta.Error, string Origen = "API", bool PermiteRetroceso = false)
+{
+    public bool BuscarAnterior => Datos is null && (Estado == Actividad.EstadoConsulta.SinResultados || PermiteRetroceso);
+}
 public sealed class TipoCambioService(HttpClient client, IConfiguration config, CredencialProveedor? credencial = null,
     ICacheTipoCambio? cache = null, ILogger<TipoCambioService>? logger = null)
 {
+    public const int MaxDiasRetroceso = 31;
     public async Task<RespuestaCambio> Consultar(DateOnly fecha, CancellationToken ct)
     {
         try
         {
-            return cache is null ? await ConsultarApi(fecha, ct)
-                : await cache.ObtenerAsync(fecha, token => ConsultarApi(fecha, token), ct);
+            if (cache is not null)
+                return await cache.ObtenerAsync(fecha, token => ConsultarApi(fecha, token), ct, ConsultarApi);
+            var resultado = await ConsultarApi(fecha, ct);
+            for (var dias = 1; resultado.BuscarAnterior
+                && dias <= MaxDiasRetroceso && fecha.DayNumber >= dias; dias++)
+            {
+                ct.ThrowIfCancellationRequested();
+                resultado = await ConsultarApi(fecha.AddDays(-dias), ct);
+            }
+            return resultado.Datos is null && resultado.Estado == Actividad.EstadoConsulta.SinResultados
+                ? resultado with { Error = $"No se encontró tipo de cambio para esa fecha ni en los {MaxDiasRetroceso} días anteriores." }
+                : resultado;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or Microsoft.VisualBasic.FileIO.MalformedLineException)
         {
@@ -24,7 +38,8 @@ public sealed class TipoCambioService(HttpClient client, IConfiguration config, 
     }
     private async Task<RespuestaCambio> ConsultarApi(DateOnly fecha, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"tipo-cambio-dia/{fecha:yyyy-MM-dd}");
+        var fechaApi = fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"tipo-cambio-dia/{fechaApi}");
         var token = credencial?.Token ?? config["ConsultaApi:Token"];
         if (string.IsNullOrWhiteSpace(token)) return new(null, "Falta configurar la credencial del servicio de consultas.");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -36,7 +51,9 @@ public sealed class TipoCambioService(HttpClient client, IConfiguration config, 
                 HttpStatusCode.NotFound => "No hay un tipo de cambio disponible para esa fecha.",
                 HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "El proveedor requiere autorización. Revisa la configuración del servicio.",
                 _ => "No se pudo obtener el tipo de cambio. Intenta más tarde." },
-                response.StatusCode == HttpStatusCode.NotFound ? Actividad.EstadoConsulta.SinResultados : Actividad.EstadoConsulta.Error);
+                response.StatusCode == HttpStatusCode.NotFound ? Actividad.EstadoConsulta.SinResultados : Actividad.EstadoConsulta.Error,
+                // AQPFACT puede devolver 502 en una fecha histórica sin una respuesta utilizable.
+                PermiteRetroceso: response.StatusCode == HttpStatusCode.BadGateway);
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
             var envelope = json.RootElement;
             if (envelope.ValueKind != JsonValueKind.Object || !envelope.TryGetProperty("success", out var success) || success.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
@@ -49,6 +66,7 @@ public sealed class TipoCambioService(HttpClient client, IConfiguration config, 
                 return new(null, "El proveedor no devolvió cotizaciones válidas para esa fecha.");
             if (!(root.TryGetProperty("fecha_sunat", out var f) || root.TryGetProperty("fecha", out f)) || !DateOnly.TryParseExact(f.GetString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var publicada))
                 return new(null, "El proveedor no indicó una fecha válida para la cotización.");
+            if (publicada > fecha) return new(null, "El proveedor devolvió una cotización posterior al día consultado.");
             return new(new TipoCambio(publicada, compra, venta, root.TryGetProperty("moneda", out var m) ? m.GetString() ?? "USD" : "USD"), null);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return new(null, "El proveedor tardó demasiado en responder."); }

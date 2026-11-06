@@ -4,7 +4,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 namespace ConsultaPeru.Services;
 
-public sealed record CampoResultado(string Etiqueta, string Valor);
+public sealed record CampoResultado(string Etiqueta, string Valor, string? Ayuda = null);
 public sealed record Documento(string Numero, string Nombre, string Nombres, string Paterno, string Materno, string Direccion, string Estado, string Condicion)
 {
     public IReadOnlyList<CampoResultado> Adicionales { get; init; } = [];

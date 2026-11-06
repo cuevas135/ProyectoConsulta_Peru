@@ -1,3 +1,26 @@
+document.querySelectorAll('.field-help').forEach(help => {
+ let fijado = false;
+ const summary = help.querySelector('summary');
+ help.addEventListener('mouseenter', () => {
+  if (window.matchMedia('(hover: hover)').matches) help.open = true;
+ });
+ help.addEventListener('mouseleave', () => {
+  if (!fijado) help.open = false;
+ });
+ summary.addEventListener('click', event => {
+  event.preventDefault();
+  fijado = !fijado;
+  help.open = fijado;
+ });
+ help.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+   fijado = false;
+   help.open = false;
+   summary.focus();
+  }
+ });
+});
+
 const form = document.querySelector('#consulta-form');
 if (form) {
  const numero = form.querySelector('#Numero');
