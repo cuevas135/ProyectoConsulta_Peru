@@ -17,8 +17,10 @@ public class ActividadModel(IRegistroActividad registro, IWebHostEnvironment env
     public long Incidencias => Eventos.LongCount(e => e.Tipo == TipoEvento.Incidencia);
     public async Task<IActionResult> OnGetAsync()
     {
-        // No publicar este panel hasta implementar autenticación de administrador.
-        if (!environment.IsDevelopment() || HttpContext.Connection.RemoteIpAddress is not { } ip || !IPAddress.IsLoopback(ip)) return NotFound();
+        // La cookie se valida en cada solicitud, incluido el segundo factor en producción.
+        if (User.Identity?.IsAuthenticated != true) return NotFound();
+        if (!environment.IsDevelopment() && (!Request.IsHttps || User.FindFirst("ActividadSegundoFactor")?.Value != "totp"))
+            return NotFound();
         try { Eventos = await registro.LeerAsync(); }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or FormatException or ArgumentException or Microsoft.VisualBasic.FileIO.MalformedLineException)
         { ErrorLectura = "No se pudo leer el registro completo. Revisa los archivos de actividad y sus permisos; no se han borrado."; }

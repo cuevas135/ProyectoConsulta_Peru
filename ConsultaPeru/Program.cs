@@ -1,5 +1,12 @@
 var builder = WebApplication.CreateBuilder(args);
 
+// Preparación local de una cuenta única. Nunca se publica el archivo generado.
+if (args.Contains("--preparar-acceso-actividad"))
+{
+    ConsultaPeru.Seguridad.PrepararAcceso.Guardar(builder.Environment.ContentRootPath);
+    return;
+}
+
 // Configuración privada de esta máquina. Se copia al ejecutar, pero nunca al publicar.
 builder.Configuration.AddJsonFile(
     Path.Combine(AppContext.BaseDirectory, "appsettings.Local.json"),
@@ -57,12 +64,23 @@ builder.Services.AddSingleton<ConsultaPeru.Services.ICacheTipoCambio>(sp =>
 builder.Services.AddSingleton<ConsultaPeru.Seguridad.AccesoActividad>();
 builder.Services.AddAuthentication("ActividadLocal").AddCookie("ActividadLocal", options => {
     options.LoginPath = "/AccesoActividad";
-    options.Cookie.Name = "ConsultaPeru.Actividad";
+    options.Cookie.Name = "DatoAlToque.Actividad.v2";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Strict;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
     options.SlidingExpiration = false;
+    options.Events.OnValidatePrincipal = context =>
+    {
+        var acceso = context.HttpContext.RequestServices.GetRequiredService<ConsultaPeru.Seguridad.AccesoActividad>();
+        var local = builder.Environment.IsDevelopment()
+            && context.HttpContext.Connection.RemoteIpAddress is { } ip && System.Net.IPAddress.IsLoopback(ip);
+        var valido = context.Principal?.FindFirst("ActividadSello")?.Value == acceso.Sello
+            && (local || (context.HttpContext.Request.IsHttps && acceso.ProduccionHabilitada
+                && context.Principal?.FindFirst("ActividadSegundoFactor")?.Value == "totp"));
+        if (!valido) context.RejectPrincipal();
+        return Task.CompletedTask;
+    };
 });
 builder.Services.AddTransient<ConsultaPeru.Services.RespaldoHandler>();
 builder.Services.AddHttpClient("ApiAnterior", client => {

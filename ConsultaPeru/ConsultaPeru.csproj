@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Otp.NET" Version="1.4.1" />
     <Content Remove="App_Data/**" />
     <None Remove="App_Data/**" />
     <Content Update="appsettings.Local.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Never" />

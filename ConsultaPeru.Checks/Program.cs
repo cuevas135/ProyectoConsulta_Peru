@@ -132,6 +132,28 @@ for(var i=0;i<4;i++) access.Verificar("incorrecta");
 Check(access.Verificar("incorrecta")==ConsultaPeru.Seguridad.ResultadoAcceso.Bloqueado,"Cinco intentos activan bloqueo");
 Check(access.Verificar("clave-ficticia-para-tests")==ConsultaPeru.Seguridad.ResultadoAcceso.Bloqueado,"No elude bloqueo con otra petición");
 Check(new ConsultaPeru.Seguridad.AccesoActividad(emptyConfig,clock).Verificar("cualquiera")==ConsultaPeru.Seguridad.ResultadoAcceso.SinConfigurar,"Sin contraseña no concede acceso");
+var adminDir=Path.Combine(Path.GetTempPath(),"ConsultaPeruAdminChecks",Guid.NewGuid().ToString("N"));
+var totpKey=OtpNet.Base32Encoding.ToString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(20));
+var productionConfig=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
+ ["Actividad:ProduccionHabilitada"]="true", ["Actividad:Usuario"]="admin-test",
+ ["Actividad:PasswordHash"]=adminHash, ["Actividad:TotpSecret"]=totpKey }).Build();
+var productionAccess=new ConsultaPeru.Seguridad.AccesoActividad(productionConfig,clock);
+var validCode=new OtpNet.Totp(OtpNet.Base32Encoding.ToBytes(totpKey)).ComputeTotp(clock.GetUtcNow().UtcDateTime);
+Check(productionAccess.VerificarProduccion("admin-test","clave-ficticia-para-tests","",adminDir)==ConsultaPeru.Seguridad.ResultadoAcceso.Incorrecto,"Producción exige segundo factor");
+Check(productionAccess.VerificarProduccion("admin-test","clave-ficticia-para-tests",validCode,adminDir)==ConsultaPeru.Seguridad.ResultadoAcceso.Permitido,"Producción permite contraseña y TOTP válidos");
+var restartedAccess=new ConsultaPeru.Seguridad.AccesoActividad(productionConfig,clock);
+Check(restartedAccess.VerificarProduccion("admin-test","clave-ficticia-para-tests",validCode,adminDir)==ConsultaPeru.Seguridad.ResultadoAcceso.Incorrecto,"Rechaza código reutilizado incluso después de reiniciar");
+for(var i=0;i<4;i++) restartedAccess.VerificarProduccion("admin-test","incorrecta",validCode,adminDir);
+Check(new ConsultaPeru.Seguridad.AccesoActividad(productionConfig,clock).VerificarProduccion("admin-test","clave-ficticia-para-tests",validCode,adminDir)==ConsultaPeru.Seguridad.ResultadoAcceso.Bloqueado,"Bloqueo sobrevive reinicio del servicio");
+Check(new ConsultaPeru.Seguridad.AccesoActividad(adminConfig,clock).VerificarProduccion("admin-test","clave-ficticia-para-tests",validCode,adminDir)==ConsultaPeru.Seguridad.ResultadoAcceso.SinConfigurar,"Producción cerrada si no se habilita expresamente");
+var trustedContext=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+trustedContext.Request.Scheme="https";
+trustedContext.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(new[] {
+ new System.Security.Claims.Claim("ActividadSegundoFactor","totp") },"ActividadLocal"));
+var trustedPanel=new ConsultaPeru.Pages.ActividadModel(store,new FakeEnvironment("Production")) {PageContext=new Microsoft.AspNetCore.Mvc.RazorPages.PageContext{HttpContext=trustedContext}};
+Check(await trustedPanel.OnGetAsync() is Microsoft.AspNetCore.Mvc.RazorPages.PageResult,"Panel disponible con autenticación y segundo factor en HTTPS");
+trustedContext.Request.Scheme="http";
+Check(await trustedPanel.OnGetAsync() is Microsoft.AspNetCore.Mvc.NotFoundResult,"Panel rechaza HTTP en producción");
 var cacheDir=Path.Combine(Path.GetTempPath(),"ConsultaPeruCacheChecks",Guid.NewGuid().ToString("N"));
 var exchangeCache=new CacheTipoCambioCsv(cacheDir,clock);
 var exchangeCache2=new CacheTipoCambioCsv(cacheDir,clock);

@@ -4,5 +4,15 @@
 <div class="access-overlay"><section class="card access-dialog" role="dialog" aria-modal="true" aria-labelledby="access-title">
 <span class="eyebrow">ACCESO PRIVADO</span><h1 id="access-title">Actividad del sitio</h1><p>Introduce la contraseña de administración.</p>
 @if (Model.Error is not null) { <p class="error" role="alert">@Model.Error</p> }
-<form method="post"><label class="input-label" for="Password">Contraseña</label><input type="password" id="Password" name="Password" autocomplete="current-password" required autofocus maxlength="256" /><button type="submit">Ingresar →</button></form><a asp-page="/Index" class="access-cancel">Volver a consultas</a>
+<form method="post">
+@if (Model.RequiereSegundoFactor)
+{
+<label class="input-label" for="Usuario">Usuario</label><input type="text" id="Usuario" name="Usuario" autocomplete="username" required maxlength="100" />
+}
+<label class="input-label" for="Password">Contraseña</label><input type="password" id="Password" name="Password" autocomplete="current-password" required maxlength="256" />
+@if (Model.RequiereSegundoFactor)
+{
+<label class="input-label" for="Codigo">Código de tu aplicación autenticadora</label><input type="text" id="Codigo" name="Codigo" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required /><p class="hint">Introduce el código actual de seis dígitos.</p>
+}
+<button type="submit">Ingresar →</button></form><a asp-page="/Index" class="access-cancel">Volver a consultas</a>
 </section></div>

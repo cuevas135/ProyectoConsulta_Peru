@@ -1,9 +1,9 @@
 @page
 @model ActividadModel
 @using ConsultaPeru.Actividad
-@{ ViewData["Title"] = "Actividad local"; }
+@{ ViewData["Title"] = "Actividad del sitio"; }
 <form method="post" asp-page-handler="Salir" class="logout-form"><button type="submit">Cerrar acceso privado</button></form>
-<section class="intro"><span class="eyebrow">ADMINISTRACIÓN LOCAL</span><h1>Actividad <em>del sitio.</em></h1><p>Registro acumulado desde la activación. Las horas se muestran en Perú.</p></section>
+<section class="intro"><span class="eyebrow">ADMINISTRACIÓN PRIVADA</span><h1>Actividad <em>del sitio.</em></h1><p>Registro acumulado desde la activación. Las horas se muestran en Perú.</p></section>
 @if (Model.ErrorLectura is not null) { <div class="error" role="alert">@Model.ErrorLectura</div> }
 @if (!Model.Salud.Disponible) { <div class="error" role="alert">Se detectaron @Model.Salud.FallosEscritura fallos de escritura en esta ejecución. Algunos eventos podrían no estar registrados. Revisa los permisos y el espacio disponible.</div> }
 <div class="metrics">
